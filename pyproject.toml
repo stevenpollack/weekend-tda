@@ -16,5 +16,22 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=7.2.0",
+    "pyrefly>=1.0.0",
     "jupyter>=1.1.1",
+    "ruff>=0.15.14",
 ]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Defaults (E, F) + import sorting + pyupgrade. Conservative for a notebook-heavy repo.
+extend-select = ["I", "UP"]
+
+[tool.pyrefly]
+# Force pyrefly (CLI and Positron's bundled extension) to resolve imports
+# against the uv-managed venv instead of the system interpreter. Without this
+# the bundled extension queries /usr/local/lib/python3.12/dist-packages and
+# fails to find gtda, torch, etc.
+python-interpreter = ".venv/bin/python"
+python-version = "3.12"
