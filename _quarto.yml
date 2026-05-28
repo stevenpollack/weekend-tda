@@ -9,3 +9,6 @@ format:
   html:
     theme: darkly
     toc: true
+    include-in-header:
+      - text: |
+          <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
