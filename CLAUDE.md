@@ -29,7 +29,7 @@ The goal is a **calibrated opinion** on whether the broader idea (empty regions 
 | 1. Synthetic sanity check | Verify pipeline + build PD intuition on toy data | notebook cells |
 | 2. Real embeddings baseline | CLIP + CIFAR-100 embeddings, UMAP, baseline persistence diagrams | `embeddings.npy`, `labels.npy`, `umap_full.png` |
 | 3. Ablation | Remove a class, compare diagrams, bottleneck distance, localize hole | comparison figures |
-| 4. Writeup | One-page honest summary | `RESULTS.md` |
+| 4. Writeup | One-page honest summary | closing section of `pilot.ipynb` |
 
 There are **decision points** between phases (brief §4.4, §6.5). Respect them — if Phase 1 toy ablation doesn't produce the expected clean result, the brief says stop and pivot to reading tutorials, not push forward.
 
@@ -58,4 +58,6 @@ Managed with **uv**. Python pinned to **3.12** (`.python-version`); `requires-py
 
 ## Deliverable
 
-`RESULTS.md`, one page max, four sections: what I ran / what I found (with 2–3 figures) / what didn't work or surprised me / should this be pursued further (calibrated yes-no-conditional with one reason). Then push to GitHub.
+`pilot.ipynb` is the primary deliverable — a self-contained notebook with code, figures, and a closing markdown section summarizing results. That summary section should cover four things in ~4 cells: what I ran / what I found (with inline figures) / what didn't work or surprised me / should this be pursued further (calibrated yes-no-conditional with one reason).
+
+No separate `RESULTS.md` needed. The notebook *is* the report. Push to GitHub; publish rendered via GitHub Pages (see `plans/publish_github_pages.md`).

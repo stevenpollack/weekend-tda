@@ -19,6 +19,7 @@ dev = [
     "pyrefly>=1.0.0",
     "jupyter>=1.1.1",
     "ruff>=0.15.14",
+    "nbconvert>=7.17.1",
 ]
 
 [tool.ruff]
