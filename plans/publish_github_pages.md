@@ -1,74 +1,30 @@
 # Publishing `pilot.ipynb` via GitHub Pages
 
-Goal: render the notebook (code + outputs) as a static HTML page and serve it from GitHub Pages so anyone with the link can read the results without cloning the repo.
-
-**Selected approach:** nbconvert + GitHub Actions (auto-deploy on every push to main).
+Goal: render the notebook (code + outputs) as a styled dark-mode HTML page via Quarto and deploy it to GitHub Pages on every push to main.
 
 ---
 
-## Steps
+## How it works
 
-1. **Add `nbconvert` to dev deps:**
-   ```bash
-   uv add --group dev nbconvert
-   ```
+1. `_quarto.yml` configures Quarto to render as a website with the `darkly` theme, outputting to `_site/`.
+2. `.github/workflows/pages.yml` installs Quarto, runs `quarto render pilot.ipynb`, and deploys `_site/` via GitHub Pages.
+3. The notebook must be pre-executed (outputs saved in `.ipynb`) — the workflow does not re-run cells.
 
-2. **Create `.github/workflows/pages.yml`:**
-   ```yaml
-   name: Publish notebook to GitHub Pages
+## Local preview
 
-   on:
-     push:
-       branches: [main]
+```bash
+quarto render pilot.ipynb
+# open _site/pilot.html in browser
+```
 
-   permissions:
-     contents: read
-     pages: write
-     id-token: write
+Or use `quarto preview pilot.ipynb` for live-reload during editing.
 
-   concurrency:
-     group: pages
-     cancel-in-progress: true
+## Deployment
 
-   jobs:
-     build:
-       runs-on: ubuntu-latest
-       steps:
-         - uses: actions/checkout@v4
+- Push to `main` triggers the workflow automatically.
+- One-time setup: enable Pages in repo settings → Source: "GitHub Actions".
+- Published URL: `https://<username>.github.io/weekend-tda/`
 
-         - name: Install uv
-           uses: astral-sh/setup-uv@v4
+## Theme
 
-         - name: Install deps
-           run: uv sync --group dev
-
-         - name: Convert notebook to HTML
-           run: uv run jupyter nbconvert --to html pilot.ipynb --output _site/index.html
-
-         - name: Upload Pages artifact
-           uses: actions/upload-pages-artifact@v3
-           with:
-             path: _site
-
-     deploy:
-       needs: build
-       runs-on: ubuntu-latest
-       environment:
-         name: github-pages
-         url: ${{ steps.deployment.outputs.page_url }}
-       steps:
-         - name: Deploy to GitHub Pages
-           id: deployment
-           uses: actions/deploy-pages@v4
-   ```
-
-3. **Enable GitHub Pages in repo settings:**
-   - Settings → Pages → Source: "GitHub Actions"
-
-4. **Push to main.** The workflow converts and deploys automatically.
-
-## Notes
-
-- The notebook must be pre-executed (outputs saved in `.ipynb`) — the workflow does *not* re-run cells (that would require GPU, CIFAR download, etc.).
-- Code cells are shown in the published HTML (no `--no-input` flag).
-- Published URL will be `https://<username>.github.io/weekend-tda/`.
+Using Bootswatch `darkly`. Change in `_quarto.yml` under `format.html.theme`. Other dark options: `slate`, `cyborg`, `superhero`, `vapor`.

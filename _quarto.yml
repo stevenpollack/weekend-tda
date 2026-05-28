@@ -1,0 +1,11 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "Weekend TDA"
+
+format:
+  html:
+    theme: darkly
+    toc: true

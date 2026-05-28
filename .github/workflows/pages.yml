@@ -19,16 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - name: Install Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
 
-      - name: Install deps
-        run: uv sync --group dev
-
-      - name: Convert notebook to HTML
-        run: |
-          mkdir -p _site
-          uv run jupyter nbconvert --to html pilot.ipynb --output-dir _site --output index.html
+      - name: Render notebook
+        run: quarto render pilot.ipynb
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
