@@ -170,7 +170,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#hemisphere-ablation-s2" id="toc-hemisphere-ablation-s2" class="nav-link" data-scroll-target="#hemisphere-ablation-s2">3. Hemisphere ablation — S^2</a></li>
   <li><a href="#sensitivity-sweep-at-what-removal-fraction-does-signal-drop-into-noise" id="toc-sensitivity-sweep-at-what-removal-fraction-does-signal-drop-into-noise" class="nav-link" data-scroll-target="#sensitivity-sweep-at-what-removal-fraction-does-signal-drop-into-noise">4. Sensitivity sweep — at what removal fraction does signal drop into noise?</a></li>
   <li><a href="#implication-for-clip-cifar-100" id="toc-implication-for-clip-cifar-100" class="nav-link" data-scroll-target="#implication-for-clip-cifar-100">5. Implication for CLIP / CIFAR-100</a></li>
-  <li><a href="#s5-confirmation" id="toc-s5-confirmation" class="nav-link" data-scroll-target="#s5-confirmation">6. S^5 confirmation</a></li>
+  <li><a href="#s4-confirmation-inconclusive-at-n100" id="toc-s4-confirmation-inconclusive-at-n100" class="nav-link" data-scroll-target="#s4-confirmation-inconclusive-at-n100">6. S^4 confirmation — inconclusive at n=100</a></li>
   </ul>
 </nav>
     </div>
@@ -227,30 +227,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="utils" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_sphere(n_pts, dim_ambient, seed):</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    pts <span class="op">=</span> rng.standard_normal((n_pts, dim_ambient))</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pts <span class="op">/</span> np.linalg.norm(pts, axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_hemisphere(n_pts, dim_ambient, threshold<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    accepted <span class="op">=</span> []</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">len</span>(accepted) <span class="op">&lt;</span> n_pts:</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        batch <span class="op">=</span> rng.standard_normal((n_pts <span class="op">*</span> <span class="dv">4</span>, dim_ambient))</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        batch <span class="op">/=</span> np.linalg.norm(batch, axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        accepted.extend(batch[batch[:, <span class="dv">0</span>] <span class="op">&lt;</span> threshold])</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.array(accepted[:n_pts])</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pickle</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>_CACHE_DIR <span class="op">=</span> Path(<span class="st">".cache"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>_CACHE_DIR.mkdir(exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _cache(key: <span class="bu">str</span>, fn):</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    path <span class="op">=</span> _CACHE_DIR <span class="op">/</span> <span class="ss">f"</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">.pkl"</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> path.exists():</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> pickle.loads(path.read_bytes())</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> fn()</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    path.write_bytes(pickle.dumps(result))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> h_finite(dgms, dim):</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> dgms[dim]</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> d[np.isfinite(d[:, <span class="dv">1</span>])]</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> surface_fraction(threshold, sphere_dim):</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Fraction of S^sphere_dim surface area with x[0] &lt; threshold."""</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> betainc(sphere_dim <span class="op">/</span> <span class="dv">2</span>, sphere_dim <span class="op">/</span> <span class="dv">2</span>, (<span class="dv">1</span> <span class="op">+</span> threshold) <span class="op">/</span> <span class="dv">2</span>)</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>n_pts     <span class="op">=</span> <span class="dv">150</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>n_threads <span class="op">=</span> os.cpu_count()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_sphere(n_pts, dim_ambient, seed):</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    pts <span class="op">=</span> rng.standard_normal((n_pts, dim_ambient))</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pts <span class="op">/</span> np.linalg.norm(pts, axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sample_hemisphere(n_pts, dim_ambient, threshold<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    accepted <span class="op">=</span> []</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="bu">len</span>(accepted) <span class="op">&lt;</span> n_pts:</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>        batch <span class="op">=</span> rng.standard_normal((n_pts <span class="op">*</span> <span class="dv">4</span>, dim_ambient))</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        batch <span class="op">/=</span> np.linalg.norm(batch, axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>        accepted.extend(batch[batch[:, <span class="dv">0</span>] <span class="op">&lt;</span> threshold])</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.array(accepted[:n_pts])</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> h_finite(dgms, dim):</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> dgms[dim]</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> d[np.isfinite(d[:, <span class="dv">1</span>])]</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> surface_fraction(threshold, sphere_dim):</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Fraction of S^sphere_dim surface area with x[0] &lt; threshold."""</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> betainc(sphere_dim <span class="op">/</span> <span class="dv">2</span>, sphere_dim <span class="op">/</span> <span class="dv">2</span>, (<span class="dv">1</span> <span class="op">+</span> threshold) <span class="op">/</span> <span class="dv">2</span>)</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>n_pts     <span class="op">=</span> <span class="dv">150</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>n_threads <span class="op">=</span> os.cpu_count()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
 <hr>
@@ -327,39 +341,47 @@ Figure&nbsp;1
 </section>
 <section id="hemisphere-ablation-s2" class="level2">
 <h2 class="anchored" data-anchor-id="hemisphere-ablation-s2">3. Hemisphere ablation — S^2</h2>
-<p><strong>Setup:</strong> Compare persistence diagrams of (a) full S^2 and (b) a hemisphere of S^2 (same n=150 points, sampled directly from the restricted domain so sample sizes match).</p>
-<p><strong>Why S^2?</strong> Full S^2 has one H2 generator — the “void” enclosed by the sphere. A hemisphere is contractible (homeomorphic to a disk), so H2 must vanish completely.</p>
-<div id="s2-ablation" class="cell" data-execution_count="4">
+<div id="s2-ablation-setup" class="cell" data-execution_count="4">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>D_AMB <span class="op">=</span> <span class="dv">3</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>T_DIM <span class="op">=</span> D_AMB <span class="op">-</span> <span class="dv">1</span>  <span class="co"># H2</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>N_REPS <span class="op">=</span> <span class="dv">10</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>diags_full <span class="op">=</span> [</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    gph.ripser_parallel(</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        sample_sphere(n_pts, D_AMB, s), maxdim<span class="op">=</span>T_DIM, n_threads<span class="op">=</span>n_threads</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    )[<span class="st">"dgms"</span>]</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>diags_hemi_half <span class="op">=</span> [</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    gph.ripser_parallel(</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        sample_hemisphere(n_pts, D_AMB, threshold<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>s), maxdim<span class="op">=</span>T_DIM, n_threads<span class="op">=</span>n_threads</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    )[<span class="st">"dgms"</span>]</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>noise <span class="op">=</span> np.array([</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    bottleneck(h_finite(diags_full[i], T_DIM), h_finite(diags_full[j], T_DIM))</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, j <span class="kw">in</span> combinations(<span class="bu">range</span>(N_REPS), <span class="dv">2</span>)</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>signal_half <span class="op">=</span> np.array([</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    bottleneck(h_finite(diags_full[i], T_DIM), h_finite(diags_hemi_half[i], T_DIM))</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>D_AMB    <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>T_DIM    <span class="op">=</span> D_AMB <span class="op">-</span> <span class="dv">1</span>  <span class="co"># H2</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>N_REPS   <span class="op">=</span> <span class="dv">10</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>n_pts_s2 <span class="op">=</span> <span class="dv">150</span>  <span class="co"># alias before S^5 cells override n_pts</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="cell-fig-s2-ablation" class="cell" data-execution_count="5">
+<p><strong>Setup:</strong> Compare persistence diagrams of (a) full S^2 and (b) a hemisphere of S^2 (same n=150 points, sampled directly from the restricted domain so sample sizes match).</p>
+<p><strong>Why S^2?</strong> Full S^2 has one H2 generator — the “void” enclosed by the sphere. A hemisphere is contractible (homeomorphic to a disk), so H2 must vanish completely.</p>
+<div id="s2-ablation" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _compute_s2_ablation():</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    _diags_full <span class="op">=</span> [</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>        gph.ripser_parallel(</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>            sample_sphere(n_pts, D_AMB, s), maxdim<span class="op">=</span>T_DIM, n_threads<span class="op">=</span>n_threads</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        )[<span class="st">"dgms"</span>]</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    _diags_hemi <span class="op">=</span> [</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        gph.ripser_parallel(</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            sample_hemisphere(n_pts, D_AMB, threshold<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>s), maxdim<span class="op">=</span>T_DIM, n_threads<span class="op">=</span>n_threads</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        )[<span class="st">"dgms"</span>]</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    _noise <span class="op">=</span> np.array([</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        bottleneck(h_finite(_diags_full[i], T_DIM), h_finite(_diags_full[j], T_DIM))</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, j <span class="kw">in</span> combinations(<span class="bu">range</span>(N_REPS), <span class="dv">2</span>)</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    _signal <span class="op">=</span> np.array([</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        bottleneck(h_finite(_diags_full[i], T_DIM), h_finite(_diags_hemi[i], T_DIM))</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _diags_full, _diags_hemi, _noise, _signal</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>diags_full, diags_hemi_half, noise, signal_half <span class="op">=</span> _cache(<span class="st">"s2_ablation"</span>, _compute_s2_ablation)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-fig-s2-ablation" class="cell" data-execution_count="6">
 <div class="cell-output cell-output-display">
 <div id="fig-s2-ablation" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -373,21 +395,21 @@ Figure&nbsp;2: Left/centre: persistence diagrams for full S^2 and hemisphere-rem
 </div>
 </div>
 </div>
-<div id="cell-table-s2-ablation" class="cell" data-execution_count="6">
+<div id="cell-table-s2-ablation" class="cell" data-execution_count="7">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    {</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"mean"</span>: [noise.mean(), signal_half.mean()],</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"std"</span>:  [noise.std(),  signal_half.std()],</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"min"</span>:  [noise.<span class="bu">min</span>(),  signal_half.<span class="bu">min</span>()],</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"max"</span>:  [noise.<span class="bu">max</span>(),  signal_half.<span class="bu">max</span>()],</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"SNR vs noise mean"</span>: [<span class="st">"—"</span>, <span class="ss">f"</span><span class="sc">{</span>signal_half<span class="sc">.</span>mean() <span class="op">/</span> noise<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">×"</span>],</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    },</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="ss">f"Noise (full vs full, H</span><span class="sc">{</span>T_DIM<span class="sc">}</span><span class="ss">)"</span>, <span class="ss">f"Signal (full vs hemi, H</span><span class="sc">{</span>T_DIM<span class="sc">}</span><span class="ss">)"</span>],</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"mean"</span>: [noise.mean(), signal_half.mean()],</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"std"</span>:  [noise.std(),  signal_half.std()],</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"min"</span>:  [noise.<span class="bu">min</span>(),  signal_half.<span class="bu">min</span>()],</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">"max"</span>:  [noise.<span class="bu">max</span>(),  signal_half.<span class="bu">max</span>()],</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">"SNR vs noise mean"</span>: [<span class="st">"—"</span>, <span class="ss">f"</span><span class="sc">{</span>signal_half<span class="sc">.</span>mean() <span class="op">/</span> noise<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">×"</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    index<span class="op">=</span>[<span class="ss">f"Noise (full vs full, H</span><span class="sc">{</span>T_DIM<span class="sc">}</span><span class="ss">)"</span>, <span class="ss">f"Signal (full vs hemi, H</span><span class="sc">{</span>T_DIM<span class="sc">}</span><span class="ss">)"</span>],</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>).<span class="bu">round</span>(<span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
-<div id="table-s2-ablation" class="cell-output cell-output-display" data-execution_count="5">
+<div id="table-s2-ablation" class="cell-output cell-output-display" data-execution_count="6">
 <div>
 
 
@@ -443,34 +465,34 @@ Note
 </section>
 <section id="sensitivity-sweep-at-what-removal-fraction-does-signal-drop-into-noise" class="level2">
 <h2 class="anchored" data-anchor-id="sensitivity-sweep-at-what-removal-fraction-does-signal-drop-into-noise">4. Sensitivity sweep — at what removal fraction does signal drop into noise?</h2>
-<div id="s2-sweep" class="cell" data-execution_count="7">
+<div id="s2-sweep" class="cell" data-execution_count="8">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>thresholds  <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">0.9</span>, <span class="fl">0.9</span>, <span class="dv">12</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>pct_retained <span class="op">=</span> (<span class="dv">1</span> <span class="op">+</span> thresholds) <span class="op">/</span> <span class="dv">2</span> <span class="op">*</span> <span class="dv">100</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>signal_means, signal_stds <span class="op">=</span> [], []</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> thresh <span class="kw">in</span> thresholds:</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    diags_hemi <span class="op">=</span> [</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        gph.ripser_parallel(</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>            sample_hemisphere(n_pts, D_AMB, threshold<span class="op">=</span>thresh, seed<span class="op">=</span>s),</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            maxdim<span class="op">=</span>T_DIM,</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>            n_threads<span class="op">=</span>n_threads,</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        )[<span class="st">"dgms"</span>]</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    sig <span class="op">=</span> np.array([</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        bottleneck(h_finite(diags_full[i], T_DIM), h_finite(diags_hemi[i], T_DIM))</span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    signal_means.append(sig.mean())</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    signal_stds.append(sig.std())</span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>signal_means <span class="op">=</span> np.array(signal_means)</span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>signal_stds  <span class="op">=</span> np.array(signal_stds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>thresholds   <span class="op">=</span> np.linspace(<span class="op">-</span><span class="fl">0.9</span>, <span class="fl">0.9</span>, <span class="dv">12</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>pct_retained <span class="op">=</span> (<span class="dv">1</span> <span class="op">+</span> thresholds) <span class="op">/</span> <span class="dv">2</span> <span class="op">*</span> <span class="dv">100</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _compute_s2_sweep():</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    _means, _stds <span class="op">=</span> [], []</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> thresh <span class="kw">in</span> thresholds:</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        _diags_hemi <span class="op">=</span> [</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>            gph.ripser_parallel(</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                sample_hemisphere(n_pts, D_AMB, threshold<span class="op">=</span>thresh, seed<span class="op">=</span>s),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>                maxdim<span class="op">=</span>T_DIM, n_threads<span class="op">=</span>n_threads,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>            )[<span class="st">"dgms"</span>]</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        sig <span class="op">=</span> np.array([</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>            bottleneck(h_finite(diags_full[i], T_DIM), h_finite(_diags_hemi[i], T_DIM))</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>        ])</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>        _means.append(sig.mean())</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>        _stds.append(sig.std())</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.array(_means), np.array(_stds)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>signal_means, signal_stds <span class="op">=</span> _cache(<span class="st">"s2_sweep"</span>, _compute_s2_sweep)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="cell-fig-s2-sweep" class="cell" data-execution_count="8">
+<div id="cell-fig-s2-sweep" class="cell" data-execution_count="9">
 <div class="cell-output cell-output-display">
 <div id="fig-s2-sweep" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -495,7 +517,7 @@ Important
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><strong>Detection threshold: ~10–13% of surface area must be removed for a reliable signal (above noise max) at n=150.</strong></p>
+<p><strong>Detection threshold: ~10–13% of surface area must be removed for a reliable signal (above noise max = 0.33) at n=150.</strong></p>
 </div>
 </div>
 <hr>
@@ -505,34 +527,36 @@ Important
 <p>CIFAR-100 has 100 fine-grained classes. Removing one class is a ~1% perturbation — well below the ~10% threshold observed here. Removing a full 5-class superclass is ~5%, which sits in the ambiguous zone on this synthetic test. The brief’s suggestion to use a 5-class superclass removal as the primary Phase 2 experiment is well-calibrated by these results.</p>
 <p>Expected outcome: no signal for single-class removal; marginal or ambiguous signal for superclass removal. A clean negative is a valid and informative finding.</p>
 <hr>
-</section>
-<section id="s5-confirmation" class="level2">
-<h2 class="anchored" data-anchor-id="s5-confirmation">6. S^5 confirmation</h2>
-<p>Focused sweep over the 90–95% retained range (1% increments) — the region where S^2 signal dropped into noise. Surface fractions are inverted via <code>betaincinv</code> to get exact thresholds.</p>
-<p>Noise floor and sweep are in one cell so they always cache and invalidate together — splitting them would let a stale sweep cache use fresh <code>diags_full5</code> values.</p>
-<div id="s5-noise-floor" class="cell" data-execution_count="9">
+<div id="s5-noise-floor-setup" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>n_pts     <span class="op">=</span> <span class="dv">100</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>D_AMB5    <span class="op">=</span> <span class="dv">5</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>T_DIM5    <span class="op">=</span> D_AMB5 <span class="op">-</span> <span class="dv">1</span>  <span class="co"># H5</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>N_REPS5   <span class="op">=</span> <span class="dv">10</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>sphere_dim5 <span class="op">=</span> D_AMB5 <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Noise floor</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>diags_full5 <span class="op">=</span> [</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    gph.ripser_parallel(</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        sample_sphere(n_pts, D_AMB5, s), maxdim<span class="op">=</span>T_DIM5, n_threads<span class="op">=</span>n_threads</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    )[<span class="st">"dgms"</span>]</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>noise5 <span class="op">=</span> np.array([</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    bottleneck(h_finite(diags_full5[i], T_DIM5), h_finite(diags_full5[j], T_DIM5))</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, j <span class="kw">in</span> combinations(<span class="bu">range</span>(N_REPS5), <span class="dv">2</span>)</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>n_pts5      <span class="op">=</span> <span class="dv">100</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>D_AMB5      <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>T_DIM5      <span class="op">=</span> D_AMB5 <span class="op">-</span> <span class="dv">1</span>  <span class="co"># H4 for S^4</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>N_REPS5     <span class="op">=</span> <span class="dv">10</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>sphere_dim5 <span class="op">=</span> D_AMB5 <span class="op">-</span> <span class="dv">1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="cell-table-s5-noise-floor" class="cell" data-execution_count="10">
+<div id="s5-noise-floor" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _compute_s5_noise():</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    _diags <span class="op">=</span> [</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>        gph.ripser_parallel(</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>            sample_sphere(n_pts5, D_AMB5, s), maxdim<span class="op">=</span>T_DIM5, n_threads<span class="op">=</span>n_threads</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        )[<span class="st">"dgms"</span>]</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    _noise <span class="op">=</span> np.array([</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>        bottleneck(h_finite(_diags[i], T_DIM5), h_finite(_diags[j], T_DIM5))</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, j <span class="kw">in</span> combinations(<span class="bu">range</span>(N_REPS5), <span class="dv">2</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _diags, _noise</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>diags_full5, noise5 <span class="op">=</span> _cache(<span class="st">"s5_noise_floor"</span>, _compute_s5_noise)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="cell-table-s5-noise-floor" class="cell" data-execution_count="12">
 <div id="table-s5-noise-floor" class="cell-output cell-output-display">
 <div>
 
@@ -557,39 +581,42 @@ Important
 </div>
 </div>
 </div>
-<div id="s5-sweep" class="cell" data-execution_count="11">
+<div id="s5-sweep" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sweep 90–95% retained in 1% steps — invert betainc to get exact thresholds</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>pct_retained5 <span class="op">=</span> np.arange(<span class="dv">90</span>, <span class="dv">100</span>, <span class="dv">1</span>)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>thresholds5   <span class="op">=</span> np.array([</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="op">*</span> betaincinv(sphere_dim5 <span class="op">/</span> <span class="dv">2</span>, sphere_dim5 <span class="op">/</span> <span class="dv">2</span>, p <span class="op">/</span> <span class="dv">100</span>) <span class="op">-</span> <span class="dv">1</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> pct_retained5</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>signal5_means, signal5_stds <span class="op">=</span> [], []</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> pct, thresh <span class="kw">in</span> <span class="bu">zip</span>(pct_retained5, thresholds5):</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    diags_hemi5 <span class="op">=</span> [</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        gph.ripser_parallel(</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>            sample_hemisphere(n_pts, D_AMB5, threshold<span class="op">=</span>thresh, seed<span class="op">=</span>s),</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>            maxdim<span class="op">=</span>T_DIM5,</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>            n_threads<span class="op">=</span>n_threads,</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>        )[<span class="st">"dgms"</span>]</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    sig <span class="op">=</span> np.array([</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>        bottleneck(h_finite(diags_full5[i], T_DIM5), h_finite(diags_hemi5[i], T_DIM5))</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    signal5_means.append(sig.mean())</span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    signal5_stds.append(sig.std())</span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>signal5_means <span class="op">=</span> np.array(signal5_means)</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>signal5_stds  <span class="op">=</span> np.array(signal5_stds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>pct_retained5 <span class="op">=</span> np.arange(<span class="dv">90</span>, <span class="dv">100</span>, <span class="dv">1</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>thresholds5   <span class="op">=</span> np.array([</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="op">*</span> betaincinv(sphere_dim5 <span class="op">/</span> <span class="dv">2</span>, sphere_dim5 <span class="op">/</span> <span class="dv">2</span>, p <span class="op">/</span> <span class="dv">100</span>) <span class="op">-</span> <span class="dv">1</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> p <span class="kw">in</span> pct_retained5</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _compute_s5_sweep():</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    _means, _stds <span class="op">=</span> [], []</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> pct, thresh <span class="kw">in</span> <span class="bu">zip</span>(pct_retained5, thresholds5):</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>        _diags_hemi <span class="op">=</span> [</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>            gph.ripser_parallel(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>                sample_hemisphere(n_pts5, D_AMB5, threshold<span class="op">=</span>thresh, seed<span class="op">=</span>s),</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                maxdim<span class="op">=</span>T_DIM5, n_threads<span class="op">=</span>n_threads,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>            )[<span class="st">"dgms"</span>]</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> s <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>        sig <span class="op">=</span> np.array([</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>            bottleneck(h_finite(diags_full5[i], T_DIM5), h_finite(_diags_hemi[i], T_DIM5))</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(N_REPS5)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>        ])</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>        _means.append(sig.mean())</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        _stds.append(sig.std())</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.array(_means), np.array(_stds)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>signal5_means, signal5_stds <span class="op">=</span> _cache(<span class="st">"s5_sweep"</span>, _compute_s5_sweep)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<div id="cell-table-s5-sweep" class="cell" data-execution_count="12">
-<div id="table-s5-sweep" class="cell-output cell-output-display" data-execution_count="11">
+</section>
+<section id="s4-confirmation-inconclusive-at-n100" class="level2">
+<h2 class="anchored" data-anchor-id="s4-confirmation-inconclusive-at-n100">6. S^4 confirmation — inconclusive at n=100</h2>
+<p>To check whether the ~10% detection threshold generalises to higher dimensions, we repeated the sweep on S^4 (H4 in R^5) with n=100 points and 10 resamples, sweeping 90–99% surface retained in 1% steps.</p>
+<div id="cell-table-s5-sweep" class="cell" data-execution_count="14">
+<div id="table-s5-sweep" class="cell-output cell-output-display" data-execution_count="13">
 <div>
 
 
@@ -691,7 +718,7 @@ Important
 </div>
 </div>
 </div>
-<div id="cell-fig-s5-sweep" class="cell" data-execution_count="13">
+<div id="cell-fig-s5-sweep" class="cell" data-execution_count="15">
 <div class="cell-output cell-output-display">
 <div id="fig-s5-sweep" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -705,6 +732,22 @@ Figure&nbsp;4: H5 bottleneck distance (full S^5 vs capped S^5) sweeping 90–95%
 </div>
 </div>
 </div>
+<p><strong>Finding: signal never clears the noise ceiling.</strong> At n=100, the noise max is 0.1287 — nearly 2× the noise mean (0.0592). The mean signal at 90% retained is 0.0725, above the noise mean but well below the noise max. The confidence band goes negative at higher thresholds — variance exceeds the mean, meaning some seeds produce near-zero signal (H4 undetectable for that resample).</p>
+<p><strong>Why:</strong> With 100 points in R^5, the H4 generator sits right at the detection limit. Different seeds produce wildly different persistence values. The S^2 experiment worked cleanly because H2 in R^3 is easy to detect at n=150; H4 in R^5 requires significantly more points.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>S^4 result is inconclusive at n=100.</strong> A reliable noise floor for H4 would require n≫100, which is outside the time budget. The S^2 calibration (n=150, SNR=3.8×) is the load-bearing result.</p>
+</div>
+</div>
+<p><strong>Implication for CLIP Phase 2:</strong> If clean synthetic geometry at n=100 is already borderline for H4, this reinforces using low homology dimensions (H0, H1) on PCA-reduced embeddings with ~2,000 points. Higher-dim homology in high-dimensional ambient spaces is not tractable at these sample sizes.</p>
 
 
 </section>
@@ -783,7 +826,7 @@ Figure&nbsp;4: H5 bottleneck distance (full S^5 vs capped S^5) sweeping 90–95%
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/stevenpollack\.github\.io\/weekend-tda\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
